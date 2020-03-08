@@ -1,10 +1,9 @@
 const mysql = require('mysql');
 const express = require('express');
-var app = express();
+const app = express();
 const bodyparser = require('body-parser');
-
 app.use(bodyparser.json());
-
+const multer = require('multer');
 
 var mysqlConnection = mysql.createConnection({
     host: 'localhost',
@@ -47,7 +46,7 @@ app.get('/Users/:id',(req,res)=>{
 });
 
 //To delete Users by id
-app.delete('/Users/:id', (req, res) => {
+app.get('/DeleteUsers/:id', (req, res) => {
     mysqlConnection.query('delete from  Users where id = ?', [req.params.id], (err, result, fields) => {
         if (!err)
             // console.log(rows);
@@ -89,3 +88,39 @@ app.put('/Users/:id', (req, res) => {
             console.log(err);
     })
 });
+
+var storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, './public/images');
+    },
+    filename: (req, file, cb) => {
+        console.log(file);
+        var filetype = '';
+        if (file.mimetype === 'image/gif') {
+            filetype = 'gif';
+        }
+        if (file.mimetype === 'image/png') {
+            filetype = 'png';
+        }
+        if (file.mimetype === 'image/jpeg') {
+            filetype = 'jpg';
+        }
+        cb(null, 'image-' + Date.now() + '.' + filetype);
+    }
+});
+var upload = multer({ storage: storage });
+app.post('/upload', upload.single('file'), function (req, res, next) {
+    
+    mysqlConnection.query('INSERT INTO images (image) VALUES ("' + req.file.filename + '")', (err, result, fields) => {
+        if (!err)
+            // console.log(rows);
+            res.send("Inserted Successfully");
+        else
+            console.log(err);
+    })
+    if (!req.file) {
+        res.status(500);
+        return next(err);
+    }
+    res.json({ fileUrl: 'http://192.168.0.7:3000/images/' + req.file.filename });
+})
